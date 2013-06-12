@@ -101,6 +101,13 @@ class DBObject {
 	}
 
 	/**
+	 * Wrapper for findOne in collection
+	 */
+	function findOne($where,$fields) {
+		return $this->collection->findOne($where,$fields);
+	}
+
+	/**
 	 * Updates this object in db.
 	 *
 	 * Replaces complete document [asynchronously!].
@@ -310,6 +317,28 @@ class DBObject {
 		
 		if (!$set) $set = false;
 		return $set;
+	}
+
+	/**
+	 * Search for one object in collection
+	 *
+	 * First searches for an object matching the query,
+	 * then generates a (real) object for it.
+	 * Could be overwritten by subclasses.
+	 * @todo a nice implementation to simply define keys in subclass by which to search here.
+	 * @return an object
+	 */
+	static function searchOne($query=NULL) {
+		global $db;
+		
+		$classname = get_called_class();
+
+		if (!$query) $query = array();
+		
+		$cursor = $db->selectCollection( constant($classname.'::collectionName') );
+		$res = $cursor->findOne($query, array('_id'=>1));
+
+		return !$res ? false : new $classname( $res['_id'] );
 	}
 }
 
