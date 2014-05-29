@@ -74,7 +74,7 @@ Counts the number of objects in the collection matching the query array.
 
 ### MyModel::search( [$query, [$sort, [$opts]]] )
 
-Returns an array ob MyModel objects matching the query array.
+Returns an array of MyModel objects matching the query array.
 
 For details on the `$query`, check [MongoCollection::find](http://php.net/manual/en/mongocollection.find.php)
 
@@ -84,6 +84,9 @@ Options can be
 
 * `(int) $opts['skip']`: Skip n entries from the result
 * `(int) $opts['limit']`: Limit result to n entries
+
+Obviously this removes the benefit of collection cursors (only loading a document when it is needed) that you get doing a standard find().
+This is one of the major draw-backs of this class, but in most cases this won't be a problem.
 
 ### $obj->update( [$options] )
 
