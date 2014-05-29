@@ -6,7 +6,7 @@
  * Cleans up properties before inserting;
  * all public properties are written to DB, others are excluded.
  *
- * Copyright (c) 2013 Paul Grau
+ * Copyright (c) 2014 Paul Grau
  * Licensed under the MIT (http://www.opensource.org/licenses/mit-license.php) license.
  */
 class DBObject {
@@ -48,8 +48,8 @@ class DBObject {
 			trigger_error("DBObjects rely on MongoDB connection",E_USER_ERROR);
 		
 		if (!defined(get_class($this).'::collectionName'))
-			trigger_error("Constant collectionName undefined in ".get_class($this),E_USER_ERROR);
-		
+			throw new IncompleteImplementationException("Constant collectionName undefined in ".get_class($this));
+
 		$this->collection = $db->selectCollection(constant(get_class($this).'::collectionName'));
 		
 		// if $id given, read data from DB
@@ -116,9 +116,9 @@ class DBObject {
 		$data = $this->toDB();
 		
 		/* if has no _id yet or it is forced, insert */
-		if (!$this->_id || $options['force_insert']) {
+		if (!isset($this->_id) || isset($options['force_insert']) && $options['force_insert']) {
 			/* If forced, ids will still be overwritten if not explicitly preserved */
-			if (!$options['preserve_id']) {
+			if (!isset($options['preserve_id']) || !$options['preserve_id']) {
 				/* If subclass has use_sequence_id defined */
 				if (defined(get_class($this).'::use_sequence_id') &&
 					true===constant(get_class($this).'::use_sequence_id')) {
@@ -204,7 +204,7 @@ class DBObject {
 	 * Deletes object from db
 	 */
 	public function delete() {
-		if (!$this->_id) return false;
+		if (!isset($this->_id)) return false;
 		$where = array("_id"=>$this->_id);
 		return $this->collection->remove($where);
 	}
@@ -236,6 +236,7 @@ class DBObject {
 	 */
 	private function toDB() {
 		$reflect = new ReflectionObject($this);
+		$return = array();
     	foreach ($reflect->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
       		$return[$prop->getName()] = $prop->getValue($this);
     	}
@@ -318,8 +319,12 @@ class DBObject {
  */
 class NoDocumentException extends Exception {
 	function __construct($message = null, $code = 0) {
-		$message = "There is no document with this id.";
-		$code = 101;
-		parent::__construct($message,$code);
+		parent::__construct("There is no document with this id.", $code);
 	}
+}
+
+/**
+ * Exception thrown when the model implementation is incomplete
+ */
+class IncompleteImplementationException extends Exception {
 }

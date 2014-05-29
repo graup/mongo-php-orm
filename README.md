@@ -35,7 +35,7 @@ You do not need to create any collections, everything is generated on the fly.
 
 ### Constants
 
-Your model can define up to three constants.
+Your model can define a couple of constants.
 
 * `const collectionName = 'aCollectionName';`
 Defines the MongoDB collection used for this model. Required.
@@ -85,7 +85,7 @@ Options can be
 * `(int) $opts['skip']`: Skip n entries from the result
 * `(int) $opts['limit']`: Limit result to n entries
 
-### $obj->update( [$foo] )
+### $obj->update( [$options] )
 
 Updates the document if already existing, otherwise performs an insert. Updates are handled asynchronously.
 
