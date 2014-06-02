@@ -43,6 +43,9 @@ class ModelTest extends MongoDBTest {
         $m = new TestModel('not_existing_id');
     }
 
+    /** 
+     * Test inserting new instance
+     */
     public function testUpdatePerformsInsert() {
         $m = new TestModel();
         $m->name = "Foo Bar";
@@ -50,6 +53,9 @@ class ModelTest extends MongoDBTest {
         $this->assertObjectHasAttribute('_id', $m);
     }
 
+    /** 
+     * Test delete method
+     */
     public function testDelete() {
         $m = new TestModel();
         $this->assertEquals($m->delete(), false);
@@ -57,20 +63,86 @@ class ModelTest extends MongoDBTest {
         $this->assertEquals($m->delete(), true);
     }
 
+    /** 
+     * Test if update correctly ignores private attributes
+     */
     public function testUpdateIgnoresPrivate() {
         $m = new TestModel();
         $m->setSecret('foo');
         $m->update();
-        // After reloading object, _secret should have default value
+        // After reloading object, _secret should be back to default value
         $m = new TestModel( $m->_id );
         $this->assertNotEquals($m->getSecret(), 'foo');
     }
 
+    /** 
+     * Test sequence IDs
+     */
     public function testSequenceIDs() {
-        for ($i = 1; $i < 5; $i++) {
+        TestIncrementalModel::getCollection()->drop();
+        for ($i = 1; $i <= 3; $i++) {
             $m = new TestIncrementalModel();
             $m->update();
             $this->assertEquals($m->_id, $i);
+        }
+    }
+
+    /** 
+     * Test MyModel::count()
+     */
+    public function testCount() {
+        TestModel::getCollection()->drop();
+        for ($i = 1; $i <= 3; $i++) {
+            $m = new TestModel();
+            $m->update();
+        }
+        $this->assertEquals(TestModel::count(), 3);
+    }
+
+    /** 
+     * Test iterator implementation
+     */
+    public function testIteratorClass() {
+        $iterator = new DBObjectIterator();
+        $this->assertEquals(iterator_to_array($iterator), array());
+    }
+
+    /** 
+     * Test iterator's general usage
+     */
+    public function testIteratorWithModels() {
+        TestModel::getCollection()->drop();
+        $names = array('A', 'B', 'C');
+        foreach($names AS $name) {
+            $m = new TestModel();
+            $m->name = $name;
+            $m->update();
+        }
+
+        $objects = TestModel::search(array(), array('name'=>1));
+        $i = 0;
+        foreach($objects AS $obj) {
+            $this->assertEquals($names[$i++], $obj->name);
+        }
+    }
+
+    /** 
+     * Test iterator's toJSON() method
+     */
+    public function testIteratorJSON() {
+        TestModel::getCollection()->drop();
+        $names = array('A', 'B', 'C');
+        foreach($names AS $name) {
+            $m = new TestModel();
+            $m->name = $name;
+            $m->update();
+        }
+
+        $json = TestModel::search(array(), array('name'=>1))->toJSON();
+        $data = json_decode($json, true);
+        $i=0;
+        foreach($data AS $row) {
+            $this->assertEquals($names[$i++], $row['name']);
         }
     }
 
@@ -82,9 +154,11 @@ class ModelTest extends MongoDBTest {
         $m->foo = 'bar';
         $json = $m->toJSON();
         $data = json_decode($json, true);
-        // On model level added public variable
+        // On model level added public attribute
         $this->assertArrayHasKey('foo', $data);
-        // On class level declared public variable
+        // On class level declared public attribute
         $this->assertArrayHasKey('name', $data);
+        // On class level declared private attribute
+        $this->assertArrayNotHasKey('_secret', $data);
     }
 }

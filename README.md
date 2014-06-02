@@ -2,6 +2,8 @@
 
 This is a simple class mapping PHP models to MongoDB documents. This way, you can directly save PHP objects into your database, making development even faster.
 
+Requirements: PHP 5.3+
+
 ## Motivation
 
 You cannot directly insert arbitrary PHP objects into MongoDB because the driver cannot handle private or protected attributes. So, before saving, this class filters all public attributes via the Reflection extension available since PHP 5.
@@ -25,11 +27,13 @@ It also abstracts some other tasks which you might encounter while working with 
 	
 	$obj->some_other_public_var = "Baz";
 	$obj->update();
-	// The first update() will actually do an insert
-	// After the update(), $obj will have an _id field.
-	// Subsequent calls to update() are thus actual updates.
 
-You do not need to create any collections, everything is generated on the fly.
+	$objects = MyModel::search(array('name'=>'Foo'));
+	foreach($objects as $instance) {
+		echo is_a($instance, 'MyModel'); // true :)
+	}
+
+You do not need to create any collections, everything is generated on the fly. Rapid development at its best.
 
 ## Documentation
 
@@ -74,7 +78,7 @@ Counts the number of objects in the collection matching the query array.
 
 ### MyModel::search( [$query, [$sort, [$opts]]] )
 
-Returns an array of MyModel objects matching the query array.
+Returns an iterator over MyModel objects matching the query array. Instances are only retrieved when accessed.
 
 For details on the `$query`, check [MongoCollection::find](http://php.net/manual/en/mongocollection.find.php)
 
@@ -85,8 +89,8 @@ Options can be
 * `(int) $opts['skip']`: Skip n entries from the result
 * `(int) $opts['limit']`: Limit result to n entries
 
-Obviously this removes the benefit of collection cursors (only loading a document when it is needed) that you get doing a standard find().
-This is one of the major draw-backs of this class, but in most cases this won't be a problem.
+If you want all instances at once, use something like `iterator_to_array($iterator);`.
+Obviously the iterator approach is preferred for memory reasons.
 
 ### $obj->update( [$options] )
 
@@ -106,12 +110,15 @@ Set this to true of you want to skip the added functionality of sequential or ra
 
 Removes the object from the collection. Returns true on success, false if the object has no ID or something else went wrong.
 
-### $obj->ensureIndex()
+### MyModel::ensureIndex($array)
 
 A wrapper for [ensureIndex()](http://php.net/manual/en/mongocollection.ensureindex.php) on the collection.
 
+### MyModel::getCollection()
 
-### $obj->getNextId()
+Returns the MongoDB collection object.
+
+### MyModel::getNextId()
 
 Returns the next usable sequential ID and handles auto increment.
 Uses the collection name as key in a seperate 'counter' collection.
@@ -120,7 +127,7 @@ This is concurrency proof due to MongoDB's `findandmodify`.
 
 You don't need to call this function manually, please refer to the Constants section.
 
-### $obj->getRandomId($min,$max)
+### MyModel::getRandomId($min, $max)
 
 Returns a random ID in the range of $min and $max. The function makes sure that the generated ID is not already taken, but is still not concurrency proof, so handle with care.
 
@@ -133,6 +140,8 @@ If MongoIDs are used as _id, this returns the timestamp of the creation date ext
 ### $obj->toJSON()
 
 Returns a JSON representation of the object. MongoIDs are converted to Strings.
+
+The iterator returned by `search()` implements this as well, so you can do something like `MyModel::search()->toJSON()`.
 
 ## Development
 

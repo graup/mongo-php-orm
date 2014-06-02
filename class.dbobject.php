@@ -10,54 +10,59 @@
  * Licensed under the MIT (http://www.opensource.org/licenses/mit-license.php) license.
  */
 class DBObject {
-	private $collection;
+	private static $_collection;
 	
 	/* The following constants need to be defined in the subclass */
 
 	/**
 	 * Name of the MongoDB Collection (required)
-	 * @interface const collectionName = 'aCollectionName';
+	 * @abstract const collectionName = 'aCollectionName';
 	 */
 
 	/**
 	 * Use sequential IDs (optional, defaults to false)
-	 * @interface const use_sequence_id = true/false;
+	 * @abstract const use_sequence_id = true/false;
 	 */
 
 	/**
 	 * Use random IDs (optional, defaults to false)
-	 * @interface const use_random_id = true/false;
+	 * @abstract const use_random_id = true/false;
 	 */
 
 	/**
 	 * Length of random IDs (optional, defaults to 6)
-	 * @interface const random_id_length = (int);
+	 * @abstract const random_id_length = (int);
 	 */
 		
 	/**
-	 * Constructor
-	 *
-	 * Tests MongoDB connectivity.
-	 * Opens specified collection.
-	 * Retrieves data if $id is set.
+	 * Tests connection and retrieves data if $id is set.
 	 */
-	function __construct($id=NULL) {
-		global $db;
-		
-		if (!is_a($db,'MongoDB'))
-			trigger_error("DBObjects rely on MongoDB connection",E_USER_ERROR);
-		
-		if (!defined(get_class($this).'::collectionName'))
-			throw new IncompleteImplementationException("Constant collectionName undefined in ".get_class($this));
+	public function __construct($id=NULL) {
+		// Test connection
+		self::getCollection();
 
-		$this->collection = $db->selectCollection(constant(get_class($this).'::collectionName'));
-		
 		// if $id given, read data from DB
-		if ($id) {
-			if (!$this->get($id)) throw new NoDocumentException();
-			
-			// $this->_id is added if query was successful
+		if ($id && $this->get($id) === false) {
+			throw new NoDocumentException("There is no document with this id.");
 		}
+	}
+
+	/**
+	 * Returns collection object and assigns statically if not yet set.
+	 */
+	public static function getCollection() {
+		global $db;
+		if (!self::$_collection) {
+			if (!is_a($db, 'MongoDB')) {
+				trigger_error("DBObjects rely on MongoDB connection", E_USER_ERROR);
+			}
+			$classname = get_called_class();
+			if (!defined($classname.'::collectionName')) {
+				throw new IncompleteImplementationException("Constant collectionName undefined in $classname");
+			}
+			self::$_collection = $db->selectCollection(constant($classname.'::collectionName'));
+		}
+		return self::$_collection;
 	}
 	
 	
@@ -65,13 +70,12 @@ class DBObject {
 	 * Reads data from db and extracts keys to object properties
 	 */
 	public function get($id) {
-		
 		if (strlen($id) == 24) // Convert strings of right length to MongoID
 			$id = new MongoId($id);
 
 		$where = array("_id"=>$id);
 
-		$result = $this->collection->findOne($where);
+		$result = self::getCollection()->findOne($where);
 
 		if (is_array($result)) {
 			$this->_id = $id;
@@ -96,8 +100,8 @@ class DBObject {
 	/**
 	 * Wrapper for find in collection
 	 */
-	function find($where,$fields) {
-		return $this->collection->find($where,$fields);
+	function find($where, $fields) {
+		return self::getCollection()->find($where,$fields);
 	}
 
 	/**
@@ -115,21 +119,22 @@ class DBObject {
 	public function update($options=array()) {
 		$data = $this->toDB();
 		
+		$classname = get_class($this);
 		/* if has no _id yet or it is forced, insert */
 		if (!isset($this->_id) || isset($options['force_insert']) && $options['force_insert']) {
 			/* If forced, ids will still be overwritten if not explicitly preserved */
 			if (!isset($options['preserve_id']) || !$options['preserve_id']) {
 				/* If subclass has use_sequence_id defined */
-				if (defined(get_class($this).'::use_sequence_id') &&
-					true===constant(get_class($this).'::use_sequence_id')) {
+				if (defined($classname.'::use_sequence_id') &&
+					true===constant($classname.'::use_sequence_id')) {
 					$data['_id'] = self::getNextId();
 				}
 				/* If subclass has use_random_id defined */
-				if (defined(get_class($this).'::use_random_id') &&
-					true===constant(get_class($this).'::use_random_id')) {
+				if (defined($classname.'::use_random_id') &&
+					true===constant($classname.'::use_random_id')) {
 					
-						if (defined(get_class($this).'::random_id_length'))
-							$length = constant(get_class($this).'::random_id_length');
+						if (defined($classname.'::random_id_length'))
+							$length = constant($classname.'::random_id_length');
 						else
 							$length = 6;
 							
@@ -139,7 +144,7 @@ class DBObject {
 				}
 			}
 						
-			$this->collection->insert($data);
+			self::getCollection()->insert($data);
 			$this->_id = $data['_id'];
 		} else {	
 			$this->updateDocument($data);
@@ -153,9 +158,9 @@ class DBObject {
 	 * This is concurrency proof due to mongodb's findandmodify.
 	 * @return (int) $id
 	 */
-	public function getNextId() {
+	public static function getNextId() {
 		global $db;
-		$next_id_key = constant(get_class($this).'::collectionName');
+		$next_id_key = constant(get_called_class().'::collectionName');
 		$res = $db->command(
 			array("findandmodify" => "counter",
 				"query" => array('_id'=>$next_id_key),
@@ -176,10 +181,10 @@ class DBObject {
 	 * @return (string) $id
 	 * @example getRandomId(100000,999999);
 	 */
-	public function getRandomId($min,$max) {
+	public static function getRandomId($min,$max) {
 		do {
 			$id = rand($min,$max);
-			$res = $this->collection->findOne(array('_id'=>$id),array('_id'=>1));
+			$res = self::getCollection()->findOne(array('_id'=>$id),array('_id'=>1));
 		} while ($res==true);
 		
 		return (string)$id;
@@ -190,12 +195,12 @@ class DBObject {
 	 * This is a direct wrapper for $collection->update(...),
 	 * so atomic operations are usable here.
 	 */
-	public function updateDocument($data,$opts=array()) {
+	public function updateDocument($data, $opts=array()) {
 		try {
 			$where = array("_id" => $this->_id);
-			$this->collection->update($where, $data, $opts);
+			self::getCollection()->update($where, $data, $opts);
 		} catch(MongoException $e) {
-			// You really do not want errors to happen here.
+			// You really do not want errors to happen down here.
 			error_log($e);
 		}
 	}
@@ -206,35 +211,34 @@ class DBObject {
 	public function delete() {
 		if (!isset($this->_id)) return false;
 		$where = array("_id"=>$this->_id);
-		return $this->collection->remove($where);
+		return self::getCollection()->remove($where);
 	}
 	
 	/**
 	 * Wrapper for ensureIndex
 	 */
-	public function ensureIndex($array) {
-		if ($this->collection)
-			$this->collection->ensureIndex($array);
+	public static function ensureIndex($array) {
+		if (self::$_collection) {
+			self::getCollection()->ensureIndex($array);
+		}
 	}
 	
 	/**
 	 * Get number of objects on collection
 	 */
-	static function count($query=array()) {
-		global $db;
-		$classname = get_called_class();
-		$coll = $db->selectCollection(constant($classname.'::collectionName'));
+	public static function count($query=array()) {
 		if (!$query) $query = array();
-		return $coll->count($query);
+		return self::getCollection()->count($query);
 	}
 	
 	/**
-	 * Cleans up object properties.
-	 * Excludes all properties which are private or protected, as the mongo driver cannot handle them.
+	 * Returns array of cleaned up model attributes.
+	 * Excludes all properties which are private or protected,
+	 * as the mongo driver cannot handle them.
 	 *
 	 * @return array of public object properties
 	 */
-	private function toDB() {
+	public function toDB() {
 		$reflect = new ReflectionObject($this);
 		$return = array();
     	foreach ($reflect->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
@@ -247,14 +251,14 @@ class DBObject {
 	 * Cleans up array for JSON representation
 	 * e.g. stripping MongoID stuff
 	 */
-	private function cleanUpJSON($array) {
+	public static function cleanUpJSON($array) {
 		$prepared = array();
 		foreach ($array as $k => $v) {
 			if ($k === '_id' || $k === '$id') {
 				$v = (string) $v;
 			}
 			if (is_array($v)) {
-				$prepared[$k] = $this->cleanUpJSON($v);
+				$prepared[$k] = self::cleanUpJSON($v);
 			} else {
 				$prepared[$k] = $v;
 			}
@@ -268,7 +272,7 @@ class DBObject {
 	public function toJSON() {
 		$data = $this->toDB();
 		ksort($data);
-		$json = json_encode($this->cleanUpJSON($data));
+		$json = json_encode(self::cleanUpJSON($data));
 		if ($json) {
 			return $json;
 		} else return NULL;
@@ -283,7 +287,7 @@ class DBObject {
 	 * @todo a nice implementation to simply define keys in subclass by which to search here.
 	 * @return array of objects
 	 */
-	static function search($query=NULL,$sort=NULL,$opts=NULL) {
+	public static function search($query=NULL,$sort=NULL,$opts=NULL) {
 		global $db;
 		
 		$classname = get_called_class();
@@ -297,34 +301,76 @@ class DBObject {
 		if ($opts['skip'])  $res->skip($opts['skip']);
 		if ($opts['limit']) $res->limit($opts['limit']);
 
-		$set = array();
+		$object_ids = array();
 		if (is_object($res)):
 			foreach($res as $entry) {
-				try {
-					$obj = new $classname( $entry['_id'] );
-					$set[] = $obj;
-				} catch (NoDocumentException $e) {
-					// Cannot really happen since only objects for valid IDs are retrieved.
-				}
+				$object_ids[] = $entry['_id'];
 			}
 		endif;
 		
-		if (!$set) $set = false;
-		return $set;
+		return new DBObjectIterator($classname, $object_ids);
 	}
 }
 
+
 /**
- * Exception thrown when trying to access a non existing object
+ * Iterator over set of object ids
+ * Creates model instances on the fly, saving memory
+ * If you want the whole set as directly accessible objects, use something
+ * like $array = iterator_to_array($iterator);
  */
+class DBObjectIterator implements Iterator {
+    private $position = 0;
+    private $object_ids = array();
+    private $classname = '';
+
+    public function __construct($classname='DBObject', $object_ids=array()) {
+        $this->object_ids = $object_ids;
+        $this->classname = $classname;
+    }
+
+    /**
+     * Returns all objects in set as JSON
+     */
+    function toJSON() {
+    	$objects = array();
+    	foreach($this AS $object) {
+    		$objects[] = $object->toDB();
+    	}
+    	return json_encode(DBObject::cleanUpJSON($objects));
+    }
+
+    function rewind() {
+        $this->position = 0;
+    }
+    function current() {
+        $id = $this->object_ids[$this->position];
+        try {
+			return new $this->classname($id);
+		} catch (NoDocumentException $e) {
+			// The object was removed in the meantime. Try next.
+			$this->next();
+			if ($this->valid())
+				return $this->current();
+			else
+				return null;
+		}
+
+    }
+    function key() {
+        return $this->object_ids[$this->position];
+    }
+    function next() {
+        ++$this->position;
+    }
+    function valid() {
+        return isset($this->object_ids[$this->position]);
+    }
+}
+
+
 class NoDocumentException extends Exception {
-	function __construct($message = null, $code = 0) {
-		parent::__construct("There is no document with this id.", $code);
-	}
 }
 
-/**
- * Exception thrown when the model implementation is incomplete
- */
 class IncompleteImplementationException extends Exception {
 }
