@@ -42,8 +42,12 @@ class DBObject {
 		self::getCollection();
 
 		// if $id given, read data from DB
-		if ($id && $this->get($id) === false) {
-			throw new NoDocumentException("There is no document with this id.");
+		if ($id) {
+			if (strlen($id) == 24) // Convert strings of right length to MongoID
+				$id = new MongoId($id);
+			if (!$this->retrieveDocument(array('_id'=>$id))) {
+				throw new NoDocumentException("There is no document with this id.");
+			}
 		}
 	}
 
@@ -69,16 +73,10 @@ class DBObject {
 	/**
 	 * Reads data from db and extracts keys to object properties
 	 */
-	public function get($id) {
-		if (strlen($id) == 24) // Convert strings of right length to MongoID
-			$id = new MongoId($id);
-
-		$where = array("_id"=>$id);
-
-		$result = self::getCollection()->findOne($where);
+	public function retrieveDocument($query) {
+		$result = self::getCollection()->findOne($query);
 
 		if (is_array($result)) {
-			$this->_id = $id;
 			foreach($result AS $key=>$value)
 				$this->$key = $value;
 			return true;
@@ -282,12 +280,10 @@ class DBObject {
 	 * Search for objects in collection
 	 *
 	 * First searches for IDs of all objects matching the query,
-	 * then generates a (real) object for them.
-	 * Could be overwritten by subclasses.
-	 * @todo a nice implementation to simply define keys in subclass by which to search here.
-	 * @return array of objects
+	 * then generates return an iterator over these IDs
+	 * @return DBObjectIterator over model instances
 	 */
-	public static function search($query=NULL,$sort=NULL,$opts=NULL) {
+	public static function search($query=NULL, $sort=NULL, $opts=NULL) {
 		global $db;
 		
 		$classname = get_called_class();
@@ -302,13 +298,29 @@ class DBObject {
 		if ($opts['limit']) $res->limit($opts['limit']);
 
 		$object_ids = array();
-		if (is_object($res)):
+		if (is_object($res)) {
 			foreach($res as $entry) {
 				$object_ids[] = $entry['_id'];
 			}
-		endif;
+		}
 		
 		return new DBObjectIterator($classname, $object_ids);
+	}
+
+	/**
+	 * Search for one object in collection
+	 * Attention! If the query matches more than one document, the MongoDB
+	 * simply returns the first one. There's no way to catch that.
+	 *
+	 * @return model instance matching query
+	 */
+	public static function searchOne($query) {
+		$classname = get_called_class();
+		$instance = new $classname();
+		if (!$instance->retrieveDocument($query) || !isset($instance->_id)) {
+			throw new NoDocumentException('There is no document matching this query.');
+		}
+		return $instance;
 	}
 }
 
@@ -366,7 +378,7 @@ class DBObjectIterator implements Iterator {
 	function next() {
 		++$this->position;
 	}
-	
+
 	function valid() {
 		return isset($this->object_ids[$this->position]);
 	}

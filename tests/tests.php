@@ -51,6 +51,8 @@ class ModelTest extends MongoDBTest {
 		$m->name = "Foo Bar";
 		$m->update();
 		$this->assertObjectHasAttribute('_id', $m);
+		$m = new TestModel($m->_id);
+		$this->assertObjectHasAttribute('_id', $m);
 	}
 
 	/** 
@@ -61,6 +63,23 @@ class ModelTest extends MongoDBTest {
 		$this->assertEquals($m->delete(), false);
 		$m->update();
 		$this->assertEquals($m->delete(), true);
+	}
+
+	/** 
+	 * Test searchOne method
+	 */
+	public function testSearchOne() {
+		$m = new TestModel();
+		$m->name = 'A';
+		$m->update();
+		$instance = TestModel::searchOne(array('name'=>'A'));
+		$this->assertInstanceOf('TestModel', $instance);
+	}
+	/** 
+	 * @expectedException NoDocumentException
+	 */
+	public function testSearchOneException() {
+		$instance = TestModel::searchOne(array('name'=>'B'));
 	}
 
 	/** 

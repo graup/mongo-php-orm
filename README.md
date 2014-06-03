@@ -93,6 +93,13 @@ Options can be
 If you want all instances at once, use something like `iterator_to_array($iterator);`.
 Obviously the iterator approach is preferred for memory reasons.
 
+### MyModel::searchOne( $query )
+
+Returns a single model instance matching the query. Behind the scenes this does the same as `new MyModel($id)`,
+simply using a custom quert rather than `('_id'=>$id)`.
+Be aware that this does not catch the case of more than one document matching the query. The driver will
+simply return the first one.
+
 ### $obj->update( [$options] )
 
 Updates the document if already existing, otherwise performs an insert. Updates are handled asynchronously.
