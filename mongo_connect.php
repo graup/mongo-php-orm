@@ -23,5 +23,3 @@ try {
 } catch (MongoConnectionException $e) {
 	die($e->getMessage()); // In production you might want to turn this off.
 }
-
-?>

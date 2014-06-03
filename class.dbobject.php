@@ -241,9 +241,9 @@ class DBObject {
 	public function toDB() {
 		$reflect = new ReflectionObject($this);
 		$return = array();
-    	foreach ($reflect->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
-      		$return[$prop->getName()] = $prop->getValue($this);
-    	}
+		foreach ($reflect->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
+			$return[$prop->getName()] = $prop->getValue($this);
+		}
 		return $return;
 	}
 	
@@ -320,32 +320,33 @@ class DBObject {
  * like $array = iterator_to_array($iterator);
  */
 class DBObjectIterator implements Iterator {
-    private $position = 0;
-    private $object_ids = array();
-    private $classname = '';
+	private $position = 0;
+	private $object_ids = array();
+	private $classname = '';
 
-    public function __construct($classname='DBObject', $object_ids=array()) {
-        $this->object_ids = $object_ids;
-        $this->classname = $classname;
-    }
+	public function __construct($classname='DBObject', $object_ids=array()) {
+		$this->object_ids = $object_ids;
+		$this->classname = $classname;
+	}
 
-    /**
-     * Returns all objects in set as JSON
-     */
-    function toJSON() {
-    	$objects = array();
-    	foreach($this AS $object) {
-    		$objects[] = $object->toDB();
-    	}
-    	return json_encode(DBObject::cleanUpJSON($objects));
-    }
+	/**
+	 * Returns all objects in set as JSON
+	 */
+	function toJSON() {
+		$objects = array();
+		foreach($this AS $object) {
+			$objects[] = $object->toDB();
+		}
+		return json_encode(DBObject::cleanUpJSON($objects));
+	}
 
-    function rewind() {
-        $this->position = 0;
-    }
-    function current() {
-        $id = $this->object_ids[$this->position];
-        try {
+	function rewind() {
+		$this->position = 0;
+	}
+
+	function current() {
+		$id = $this->object_ids[$this->position];
+		try {
 			return new $this->classname($id);
 		} catch (NoDocumentException $e) {
 			// The object was removed in the meantime. Try next.
@@ -356,16 +357,19 @@ class DBObjectIterator implements Iterator {
 				return null;
 		}
 
-    }
-    function key() {
-        return $this->object_ids[$this->position];
-    }
-    function next() {
-        ++$this->position;
-    }
-    function valid() {
-        return isset($this->object_ids[$this->position]);
-    }
+	}
+
+	function key() {
+		return $this->object_ids[$this->position];
+	}
+
+	function next() {
+		++$this->position;
+	}
+	
+	function valid() {
+		return isset($this->object_ids[$this->position]);
+	}
 }
 
 

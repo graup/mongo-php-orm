@@ -13,6 +13,7 @@ It also abstracts some other tasks which you might encounter while working with 
 ## Usage
 
 	require_once("mongo_connect.php");
+	require_once('class.dbobject.php');
 	
 	class MyModel extends DBObject {
 		public $name;
