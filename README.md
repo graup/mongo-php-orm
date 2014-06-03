@@ -10,25 +10,33 @@ You cannot directly insert arbitrary PHP objects into MongoDB because the driver
 
 It also abstracts some other tasks which you might encounter while working with the database, for example auto-incrementing integer IDs.
 
+Compared to other MongoDB active-record PHP implementations this strives to be very light-weight.
+It might not have a ton of features, but will enable to to get started super fast.
+The code has merely 400 lines of code, including documentation.
+
 ## Usage
 
-	require_once("mongo_connect.php");
+	require_once('mongo_connect.php');
 	require_once('class.dbobject.php');
 	
+	// Define model
 	class MyModel extends DBObject {
 		public $name;
 		public $description;
 		private $dont_save_this;
 	}
 	
+	// Create model instance
 	$obj = new MyModel();
 	$obj->name = "Foo";
 	$obj->description = "Bar";
 	$obj->update();
 	
+	// Update model instance
 	$obj->some_other_public_var = "Baz";
 	$obj->update();
 
+	// Find model instances
 	$objects = MyModel::search(array('name'=>'Foo'));
 	foreach($objects as $instance) {
 		echo is_a($instance, 'MyModel'); // true :)
