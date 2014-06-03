@@ -11,36 +11,39 @@ You cannot directly insert arbitrary PHP objects into MongoDB because the driver
 It also abstracts some other tasks which you might encounter while working with the database, for example auto-incrementing integer IDs.
 
 Compared to other MongoDB active-record PHP implementations this strives to be very light-weight.
-It might not have a ton of features, but will enable to to get started super fast.
-The code has merely 400 lines of code, including documentation.
+It might not have a ton of features, but will enable you to get started super fast.
+The class has merely 400 lines of code, including documentation.
 
 ## Usage
 
-	require_once('mongo_connect.php');
-	require_once('class.dbobject.php');
-	
-	// Define model
-	class MyModel extends DBObject {
-		public $name;
-		public $description;
-		private $dont_save_this;
-	}
-	
-	// Create model instance
-	$obj = new MyModel();
-	$obj->name = "Foo";
-	$obj->description = "Bar";
-	$obj->update();
-	
-	// Update model instance
-	$obj->some_other_public_var = "Baz";
-	$obj->update();
+```php
+require_once('mongo_connect.php');
+require_once('class.dbobject.php');
 
-	// Find model instances
-	$objects = MyModel::search(array('name'=>'Foo'));
-	foreach($objects as $instance) {
-		echo is_a($instance, 'MyModel'); // true :)
-	}
+// Define model
+class MyModel extends DBObject {
+	const collectionName = 'my_models';
+	public $name;
+	public $description;
+	private $dont_save_this;
+}
+
+// Create model instance
+$obj = new MyModel();
+$obj->name = "Foo";
+$obj->description = "Bar";
+$obj->update();
+
+// Update model instance
+$obj->some_other_public_var = "Baz";
+$obj->update();
+
+// Find model instances
+$objects = MyModel::search(array('name'=>'Foo'));
+foreach($objects as $instance) {
+	echo is_a($instance, 'MyModel'); // true :)
+}
+```
 
 You do not need to create any collections, everything is generated on the fly. Rapid development at its best.
 
@@ -68,18 +71,22 @@ The constructor retrieves any saved document if an ID is passed. It essentially 
 
 Of course, if you have your own constructor, it should look like this:
 
-	function __construct($id=null) {
-		parent::__construct($id);
-		...
-	}
+```php
+function __construct($id=null) {
+	parent::__construct($id);
+	...
+}
+```
 	
 Throws a `NoDocumentException` if an ID was passed but no document was found. Suggested usage:
 
-	try {
-		$obj = new MyModel($id);
-	} catch(NoDocumentException $e) {
-		// handle error
-	}
+```php
+try {
+	$obj = new MyModel($id);
+} catch(NoDocumentException $e) {
+	// handle error
+}
+```
 
 ### MyModel::count( [$query] )
 
@@ -110,11 +117,13 @@ simply return the first one.
 
 Throws a `NoDocumentException` if no document was found. Suggested usage:
 
-	try {
-		$obj = MyModel::searchOne($my_query);
-	} catch(NoDocumentException $e) {
-		// handle error
-	}
+```php
+try {
+	$obj = MyModel::searchOne($my_query);
+} catch(NoDocumentException $e) {
+	// handle error
+}
+```
 
 ### $obj->update( [$options] )
 
