@@ -280,7 +280,7 @@ class DBObject {
 	 * Search for objects in collection
 	 *
 	 * First searches for IDs of all objects matching the query,
-	 * then generates return an iterator over these IDs
+	 * then returns an iterator over these IDs
 	 * @return DBObjectIterator over model instances
 	 */
 	public static function search($query=NULL, $sort=NULL, $opts=NULL) {

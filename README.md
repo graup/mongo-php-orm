@@ -100,6 +100,14 @@ simply using a custom quert rather than `('_id'=>$id)`.
 Be aware that this does not catch the case of more than one document matching the query. The driver will
 simply return the first one.
 
+Throws a `NoDocumentException` if no document was found. Suggested usage:
+
+	try {
+		$obj = MyModel::searchOne($my_query);
+	} catch(NoDocumentException $e) {
+		// handle error
+	}
+
 ### $obj->update( [$options] )
 
 Updates the document if already existing, otherwise performs an insert. Updates are handled asynchronously.
